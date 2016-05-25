@@ -18,6 +18,7 @@ namespace io_gld_refapp
     {
         private int _ii = 0 ;
         private JToken _curr_wt_resp = null;
+        private GlueAPI _glueapi = new GlueAPI() ;
 
         private void Run_Glue()
         {
@@ -25,29 +26,22 @@ namespace io_gld_refapp
             // and exe path is in registry, but you might want an application pool
         }
 
-        private Client Connect_Glue(String net_address, int wg_port)
-        {
-            // This will talk to WinGLUE
-            return new Client(String.Format("http://{0}:{1}", net_address, wg_port));
-        }
         private Client Connect_Glue()
         {
             try
             {
-                // We will have to find a way to start WinGLUE on a different port
-                var net_address = "localhost";
-                var wg_port = 8080;
-
                 // open and retain connection
-                Client rpcClient = Connect_Glue(net_address, wg_port);
-                return rpcClient;
+                return _glueapi.GetClient();
+
             }
-            catch (Exception ex) {
-                outputBox.AppendLine("Oh damn, did not get a glue connection") ;
+            catch (Exception ex)
+            {
+                outputBox.AppendLine("Oh damn, did not get a glue connection");
                 throw; // rethrow
             }
             return null; // not get here
         }
+        
 
         private void Test_Glue_Connect(Client rpcClient)
         {
@@ -112,12 +106,11 @@ namespace io_gld_refapp
             } // for
         }
 
-        private JToken call_glue(String function_name, JContainer jo)
+        private JToken call_glue(String function_name, JContainer jo = null)
         {
-            using (Client rpcClient = Connect_Glue())
+            try
             {
-                var rq = rpcClient.NewRequest(function_name, jo);
-                var response = rpcClient.Rpc(rq);
+                var response = _glueapi.CallJSON(function_name, jo);
 
                 if (response.Result == null)
                 {
@@ -129,34 +122,14 @@ namespace io_gld_refapp
                 var result = response.Result;
                 print_string_list(function_name, result);
                 return result;
-            } // using
-        } // call_glue
-
-        private JToken call_glue(String function_name)
-        {
-            using (Client rpcClient = Connect_Glue())
+            }
+            catch (Exception ex)
             {
-                try {
-                    var rq = rpcClient.NewRequest(function_name);
-                    var response = rpcClient.Rpc(rq);
-
-                    if (response.Result == null)
-                    {
-                        outputBox.AppendLine(string.Format("{0} Error in response, code:{1} message:{2}",
-                            function_name, response.Error.Code, response.Error.Message));
-                        return null;
-                    }
-
-                    var result = response.Result;
-                    print_string_list(function_name, result);
-                    return result;
-                }
-                catch ( Exception ex ) {
-                    outputBox.AppendLine("error: " + ex.ToString() ) ;
-                    return null;
-                }
-            } // using
-        }
+                outputBox.AppendLine(string.Format("{0}: {1}",
+                    function_name, ex.Message)) ;
+                return null;
+            }
+        } // call_glue
 
         private String get_data_source()
         {
